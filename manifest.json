@@ -1,0 +1,18 @@
+{
+    "manifest_version": 3,
+    "name": "Grok Dia",
+    "version": "1.0.0",
+    "description": "Secure bridge to xAI Grok API for browser queries. No tracking.",
+    "permissions": ["storage", "activeTab", "scripting", "contextMenus", "notifications"],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "action": {
+      "default_popup": "popup.html",
+      "default_icon": "icon.png"
+    },
+    "options_page": "options.html",
+    "icons": {
+      "128": "icon.png"
+    }
+  }
