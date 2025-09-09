@@ -17,10 +17,15 @@
 5. The extension will be installed and ready to use
 
 ## Usage
-1. **Set up API Key**: Click the extension icon, then "Options" to enter your xAI API key
+1. **Configure Settings**: Click the extension icon, then "Options" to select your Grok model and enter your xAI API key
 2. **Popup Query**: Click the extension icon, enter a prompt, and optionally include current page content
 3. **Context Menu**: Select text on any webpage, right-click, and choose "Ask Grok about this"
 4. Responses will appear in the popup or as notifications
+
+## Configuration
+Choose from available xAI Grok models:
+- **Grok Code Fast**: Optimized for coding tasks
+- **Grok Beta**: General purpose model
 
 ## Permissions
 - **Storage**: To save your API key locally
@@ -31,12 +36,24 @@
 
 ## Screenshots
 
+## Configure API keys and select model
+
+### Click details
+![alt text](screenshots/extension-loaded-unpacked.png)
+
+
+### Click extension options
+![alt text](screenshots/extension-detail.png)
+
+### Select model and provide API key
+![alt text](screenshots/extension-config-page.png)
+
 ### Select content and `Ask Grok about this` feature
 
-![alt text](grok-context-menu-qa.png)
+![alt text](screenshots/grok-context-menu-qa.png)
 
 ### Open extension popup and ask anything
 
 with page context
 
-![alt text](grok-popup.png)
+![alt text](screenshots/grok-popup.png)

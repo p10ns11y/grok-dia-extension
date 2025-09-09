@@ -30,13 +30,14 @@ chrome.runtime.onInstalled.addListener(() => {
   
   // Core function to send prompt to Grok API
   function sendToGrok(prompt, callback) {
-    chrome.storage.local.get(["xaiApiKey"], (result) => {
+    chrome.storage.local.get(["model", "xaiApiKey"], (result) => {
+      const model = result.model || "grok-code-fast";
       const apiKey = result.xaiApiKey;
       if (!apiKey) {
         callback("Error: Please set your xAI API key in the extension options.");
         return;
       }
-  
+
       fetch("https://api.x.ai/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -44,7 +45,7 @@ chrome.runtime.onInstalled.addListener(() => {
           "Authorization": `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: "grok-code-fast",
+          model: model,
           messages: [{ role: "user", content: prompt }]
         })
       })
