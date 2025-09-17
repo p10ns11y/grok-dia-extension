@@ -158,6 +158,108 @@
       font-weight: 600;
       box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
     }
+
+    .vocab-stats {
+      display: flex;
+      justify-content: space-around;
+      margin: 15px 0;
+      padding: 10px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .stat-item {
+      text-align: center;
+      flex: 1;
+    }
+
+    .stat-number {
+      font-size: 18px;
+      font-weight: 600;
+      color: #667eea;
+      display: block;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #718096;
+      margin-top: 2px;
+    }
+
+    .mini-graph {
+      width: 100%;
+      height: 120px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      margin: 15px 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .graph-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #a0aec0;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .vocab-item {
+      padding: 8px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .vocab-item:last-child {
+      border-bottom: none;
+    }
+
+    .vocab-word {
+      font-weight: 500;
+      color: #2d3748;
+    }
+
+    .vocab-pos {
+      font-size: 11px;
+      color: #718096;
+      background: #edf2f7;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 8px;
+    }
+
+    .vocab-score {
+      font-size: 11px;
+      color: #667eea;
+      font-weight: 500;
+    }
+
+    .vocab-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 15px;
+    }
+
+    .vocab-actions button {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 12px;
+      margin-bottom: 0;
+    }
+
+    .vocab-empty {
+      text-align: center;
+      padding: 20px;
+      color: #a0aec0;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -178,8 +280,40 @@
     </div>
     <div id="vocab-section" style="display: none;">
       <button id="extract-vocab">Extract Vocab from Page</button>
-      <div id="vocab-list"></div>
-      <button id="view-full-vocab">View Full Vocab</button>
+
+      <div id="vocab-stats" class="vocab-stats" style="display: none;">
+        <div class="stat-item">
+          <span class="stat-number" id="vocab-count">0</span>
+          <span class="stat-label">Words</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" id="relation-count">0</span>
+          <span class="stat-label">Relations</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" id="translation-count">0</span>
+          <span class="stat-label">Translations</span>
+        </div>
+      </div>
+
+      <div class="mini-graph">
+        <div class="graph-placeholder" id="graph-placeholder">
+          📊 Extract vocabulary to see semantic relationships
+        </div>
+        <svg id="mini-vocab-graph" style="display: none;"></svg>
+      </div>
+
+      <div id="vocab-preview">
+        <div class="vocab-empty" id="vocab-empty">
+          No vocabulary extracted yet. Click "Extract Vocab" to get started!
+        </div>
+        <div id="vocab-items" style="display: none;"></div>
+      </div>
+
+      <div class="vocab-actions">
+        <button id="refresh-preview">Refresh</button>
+        <button id="view-full-vocab">View Full Vocab</button>
+      </div>
     </div>
   </div>
   <script type="module" src="popup.js"></script>

@@ -270,8 +270,11 @@ export async function extractVocab(text) {
         });
         console.log('Added new word to DB:', wordData.word);
 
-        // Add translations if available
+        // Add translations - try static first, then dynamic
+        let translationsAdded = false;
+
         if (staticTranslations[wordData.word]) {
+          // Use static translations if available
           for (const [lang, meaning] of Object.entries(staticTranslations[wordData.word])) {
             await vocabDB.translations.add({
               id: Date.now() + Math.random(),
@@ -281,7 +284,36 @@ export async function extractVocab(text) {
               sentences: []
             });
           }
-          console.log('Added translations for:', wordData.word);
+          console.log('Added static translations for:', wordData.word);
+          translationsAdded = true;
+        } else {
+          // Try dynamic translation fetching
+          try {
+            console.log('Fetching dynamic translations for:', wordData.word);
+            const dynamicTranslations = await fetchTranslations(wordData.word);
+
+            if (Object.keys(dynamicTranslations).length > 0) {
+              for (const [lang, meaning] of Object.entries(dynamicTranslations)) {
+                await vocabDB.translations.add({
+                  id: Date.now() + Math.random(),
+                  word_id: wordId,
+                  lang,
+                  meaning,
+                  sentences: []
+                });
+              }
+              console.log('Added dynamic translations for:', wordData.word, Object.keys(dynamicTranslations));
+              translationsAdded = true;
+            } else {
+              console.log('No translations found for:', wordData.word);
+            }
+          } catch (error) {
+            console.warn('Dynamic translation failed for:', wordData.word, error.message);
+          }
+        }
+
+        if (!translationsAdded) {
+          console.log('No translations available for:', wordData.word);
         }
 
         // Fetch and add semantic relations
@@ -325,6 +357,57 @@ async function fetchRelations(word) {
     console.error('Error fetching relations:', error);
     return { synonyms: [], antonyms: [] };
   }
+}
+
+// Fetch translations from LibreTranslate API
+async function fetchTranslation(word, fromLang = 'en', toLang = 'es') {
+  try {
+    const response = await fetch('https://libretranslate.com/translate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        q: word,
+        source: fromLang,
+        target: toLang,
+        format: 'text'
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Translation API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.translatedText;
+  } catch (error) {
+    console.warn('Translation fetch failed for', word, 'to', toLang, ':', error.message);
+    return null;
+  }
+}
+
+// Fetch translations for multiple languages
+async function fetchTranslations(word) {
+  const languages = ['es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh'];
+  const translations = {};
+
+  // Limit to 3 languages to avoid overwhelming the API
+  const selectedLangs = languages.slice(0, 3);
+
+  const promises = selectedLangs.map(async (lang) => {
+    try {
+      const translation = await fetchTranslation(word, 'en', lang);
+      if (translation && translation !== word) { // Only save if translation is different
+        translations[lang] = translation;
+      }
+    } catch (error) {
+      console.warn(`Failed to translate ${word} to ${lang}:`, error.message);
+    }
+  });
+
+  await Promise.allSettled(promises); // Don't fail if some translations fail
+  return translations;
 }
 
 // Add relations to DB
