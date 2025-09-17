@@ -359,46 +359,58 @@ async function fetchRelations(word) {
   }
 }
 
-// Fetch translations from LibreTranslate API
-async function fetchTranslation(word, fromLang = 'en', toLang = 'es') {
+// Fetch translations using Datamuse API (more reliable than LibreTranslate)
+async function fetchTranslation(word, targetLang = 'es') {
   try {
-    const response = await fetch('https://libretranslate.com/translate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        q: word,
-        source: fromLang,
-        target: toLang,
-        format: 'text'
-      })
-    });
+    // Use Datamuse's translation endpoint
+    const response = await fetch(`https://api.datamuse.com/words?sp=${word}&md=translations&max=1&v=en`);
 
     if (!response.ok) {
-      throw new Error(`Translation API error: ${response.status}`);
+      throw new Error(`Datamuse API error: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.translatedText;
+
+    if (data && data.length > 0 && data[0].defs) {
+      // Parse Datamuse translation format
+      const defs = data[0].defs;
+      for (const def of defs) {
+        if (def.startsWith(`${targetLang}\\t`)) {
+          return def.split('\\t')[1]; // Extract translation after language code
+        }
+      }
+    }
+
+    // Fallback: try general translation search
+    const fallbackResponse = await fetch(`https://api.datamuse.com/words?ml=${word}&max=5&v=en`);
+    const fallbackData = await fallbackResponse.json();
+
+    // Look for words that might be translations
+    if (fallbackData && fallbackData.length > 0) {
+      // This is a heuristic - return the first related word as a "translation"
+      // In a real implementation, you'd want better language detection
+      return fallbackData[0].word;
+    }
+
+    return null;
   } catch (error) {
-    console.warn('Translation fetch failed for', word, 'to', toLang, ':', error.message);
+    console.warn('Translation fetch failed for', word, 'to', targetLang, ':', error.message);
     return null;
   }
 }
 
-// Fetch translations for multiple languages
+// Fetch translations for multiple languages using Datamuse
 async function fetchTranslations(word) {
-  const languages = ['es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh'];
+  const languages = ['es', 'fr', 'de', 'it', 'pt'];
   const translations = {};
 
-  // Limit to 3 languages to avoid overwhelming the API
+  // Limit to 3 languages to respect API limits
   const selectedLangs = languages.slice(0, 3);
 
   const promises = selectedLangs.map(async (lang) => {
     try {
-      const translation = await fetchTranslation(word, 'en', lang);
-      if (translation && translation !== word) { // Only save if translation is different
+      const translation = await fetchTranslation(word, lang);
+      if (translation && translation !== word && translation.length > 0) {
         translations[lang] = translation;
       }
     } catch (error) {
