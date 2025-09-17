@@ -141,19 +141,47 @@
       color: #a0aec0;
       font-style: italic;
     }
+
+    #tab-container {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    #tab-container button {
+      margin: 0 5px;
+      width: auto;
+      padding: 8px 16px;
+      font-size: 12px;
+    }
+
+    #tab-container .active {
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h3>🤖 Ask Grok</h3>
-    <p>Enter your prompt (page content included automatically):</p>
-    <textarea id="prompt" placeholder="e.g., Summarize this page or ask a question"></textarea>
-    <button id="send">
-      <span class="spinner"></span>
-      Send Query
-    </button>
-    <div id="response" class="loading-text">Ready to query...</div>
+    <h3>🤖 Ask Grok | Vocab</h3>
+    <div id="tab-container">
+      <button id="grok-tab">Grok</button>
+      <button id="vocab-tab">Vocab</button>
+    </div>
+    <div id="grok-section">
+      <p>Enter your prompt (page content included automatically):</p>
+      <textarea id="prompt" placeholder="e.g., Summarize this page or ask a question"></textarea>
+      <button id="send">
+        <span class="spinner"></span>
+        Send Query
+      </button>
+      <div id="response" class="loading-text">Ready to query...</div>
+    </div>
+    <div id="vocab-section" style="display: none;">
+      <button id="extract-vocab">Extract Vocab from Page</button>
+      <div id="vocab-list"></div>
+      <button id="view-full-vocab">View Full Vocab</button>
+    </div>
   </div>
-  <script src="popup.js"></script>
+  <script type="module" src="popup.js"></script>
 </body>
 </html>
