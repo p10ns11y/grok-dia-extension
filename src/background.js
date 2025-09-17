@@ -151,7 +151,7 @@ function showNotification(title, message) {
   });
 }
 
-// Vocab extraction with POS tagging
+// Enhanced vocab extraction with TF-IDF-like ranking and better POS filtering
 export async function extractVocab(text) {
   console.log('Extract text length:', text.length);
 
@@ -163,40 +163,116 @@ export async function extractVocab(text) {
     const allTerms = statementsWithTermChunks.json().map(statement => statement.terms).flat();
     console.log('Total terms found:', allTerms.length);
 
-    const tokens = [];
+    // Enhanced POS filtering with better categorization
+    const candidates = [];
     allTerms.forEach(t => {
       const word = t.text.toLowerCase().trim();
       const pos = t.tags;
-      if (word && (pos.includes('Noun') || pos.includes('Verb') || pos.includes('Adjective')) &&
-        word.length > 2 && word.length < 20 && !commonWords.has(word) && /^[a-z]+$/.test(word)) {
-        tokens.push(word);
+
+      // Skip if word doesn't meet basic criteria
+      if (!word || word.length < 3 || word.length > 20 || !/^[a-z]+$/.test(word)) {
+        return;
+      }
+
+      // Skip common words
+      if (commonWords.has(word)) {
+        return;
+      }
+
+      // Enhanced POS filtering - prioritize meaningful parts of speech
+      let posScore = 0;
+      let posCategory = 'Other';
+
+      if (pos.includes('Noun')) {
+        posScore = 10;
+        posCategory = 'Noun';
+      } else if (pos.includes('Verb')) {
+        posScore = 8;
+        posCategory = 'Verb';
+      } else if (pos.includes('Adjective')) {
+        posScore = 9;
+        posCategory = 'Adjective';
+      } else if (pos.includes('Adverb')) {
+        posScore = 6;
+        posCategory = 'Adverb';
+      } else {
+        return; // Skip words that aren't nouns, verbs, adjectives, or adverbs
+      }
+
+      candidates.push({
+        word,
+        pos: posCategory,
+        posScore,
+        frequency: 1,
+        confidence: t.confidence || 0.5
+      });
+    });
+
+    console.log('POS-filtered candidates:', candidates.length);
+
+    // Group by word and calculate frequency
+    const wordMap = new Map();
+    candidates.forEach(candidate => {
+      if (wordMap.has(candidate.word)) {
+        const existing = wordMap.get(candidate.word);
+        existing.frequency += 1;
+        // Keep the highest POS score
+        if (candidate.posScore > existing.posScore) {
+          existing.posScore = candidate.posScore;
+          existing.pos = candidate.pos;
+        }
+      } else {
+        wordMap.set(candidate.word, candidate);
       }
     });
-    console.log('Filtered tokens count:', tokens.length);
 
-    const wordFreq = {};
-    tokens.forEach(word => {
-      wordFreq[word] = (wordFreq[word] || 0) + 1;
+    // Calculate TF-IDF-like scores
+    const words = Array.from(wordMap.values());
+    const totalWords = words.length;
+    const avgFrequency = words.reduce((sum, w) => sum + w.frequency, 0) / totalWords;
+
+    words.forEach(word => {
+      // TF (Term Frequency) - normalized by document length
+      const tf = word.frequency / totalWords;
+
+      // IDF-like score (rarity factor) - words that appear less frequently get higher scores
+      const rarityFactor = Math.log(avgFrequency / (word.frequency + 1) + 1);
+
+      // POS importance multiplier
+      const posMultiplier = word.posScore / 10;
+
+      // Word quality score (length, uniqueness)
+      const qualityScore = Math.min(word.word.length / 10, 1) * (1 + word.confidence);
+
+      // Final TF-IDF-like score
+      word.score = tf * rarityFactor * posMultiplier * qualityScore * 1000;
     });
 
-    const sortedWords = Object.entries(wordFreq).sort((a, b) => b[1] - a[1]).slice(0, 20);
-    console.log('top words:', sortedWords);
+    // Sort by score and take top candidates
+    const topWords = words
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 15); // Reduced from 20 to 15 for better quality
 
-    for (const [wordText, freq] of sortedWords) {
-      const existing = await vocabDB.words.where('text').equals(wordText).first();
-      console.log('word', wordText, 'existing:', existing);
+    console.log('Top ranked words:', topWords.map(w => `${w.word}(${w.pos}): ${w.score.toFixed(2)}`));
+
+    for (const wordData of topWords) {
+      const existing = await vocabDB.words.where('text').equals(wordData.word).first();
+      console.log('Processing word:', wordData.word, 'score:', wordData.score.toFixed(2), 'existing:', !!existing);
+
       if (!existing) {
         const wordId = Date.now() + Math.random();
         await vocabDB.words.add({
           id: wordId,
-          text: wordText,
-          pos: 'Noun',
-          freq_rank: 1 / freq,
+          text: wordData.word,
+          pos: wordData.pos,
+          freq_rank: wordData.score, // Use the enhanced TF-IDF-like score
           dates_encountered: [new Date().toISOString()]
         });
-        console.log('added to DB');
-        if (staticTranslations[wordText]) {
-          for (const [lang, meaning] of Object.entries(staticTranslations[wordText])) {
+        console.log('Added new word to DB:', wordData.word);
+
+        // Add translations if available
+        if (staticTranslations[wordData.word]) {
+          for (const [lang, meaning] of Object.entries(staticTranslations[wordData.word])) {
             await vocabDB.translations.add({
               id: Date.now() + Math.random(),
               word_id: wordId,
@@ -205,14 +281,29 @@ export async function extractVocab(text) {
               sentences: []
             });
           }
-          console.log('added translations');
+          console.log('Added translations for:', wordData.word);
         }
-        // Fetch and add relations
-        const relations = await fetchRelations(wordText);
-        await addRelations(wordId, relations);
+
+        // Fetch and add semantic relations
+        try {
+          const relations = await fetchRelations(wordData.word);
+          await addRelations(wordId, relations);
+          console.log('Added relations for:', wordData.word);
+        } catch (error) {
+          console.warn('Failed to fetch relations for:', wordData.word, error.message);
+        }
       } else {
+        // Update existing word's encounter date and potentially improve ranking
         existing.dates_encountered.push(new Date().toISOString());
-        await vocabDB.words.update(existing.id, { dates_encountered: existing.dates_encountered });
+        // Update ranking if the new score is better
+        if (wordData.score > existing.freq_rank) {
+          existing.freq_rank = wordData.score;
+        }
+        await vocabDB.words.update(existing.id, {
+          dates_encountered: existing.dates_encountered,
+          freq_rank: existing.freq_rank
+        });
+        console.log('Updated existing word:', wordData.word);
       }
     }
     console.log('extraction complete');
