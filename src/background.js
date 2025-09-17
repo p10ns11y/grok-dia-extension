@@ -6,7 +6,7 @@ console.log('Background script loaded');
 // Initialize Vocab Database
 export const vocabDB = new Dexie('VocabDB');
 vocabDB.version(1).stores({
-  words: 'id, text, pos, freq_rank, dates_encountered',
+  words: 'id, text, pos, freq_rank, dates_encountered, ease_factor, interval, repetitions, next_review, last_reviewed',
   translations: 'id, word_id, lang, meaning, *sentences',
   relations: 'id, word_id, related_id, type, similarity_percentage'
 });
@@ -101,6 +101,34 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     } catch (error) {
       console.error('getVocab: Database query failed:', error);
       sendResponse({ words: [], translations: [], relations: [], error: error.message });
+    }
+  } else if (request.action === "getReviewWords") {
+    try {
+      const limit = request.limit || 20;
+      const words = await getWordsDueForReview(limit);
+      const translations = await vocabDB.translations.toArray();
+      const relations = await vocabDB.relations.toArray();
+      sendResponse({ words, translations, relations });
+    } catch (error) {
+      console.error('getReviewWords: Failed:', error);
+      sendResponse({ words: [], translations: [], relations: [], error: error.message });
+    }
+  } else if (request.action === "updateWordReview") {
+    try {
+      const { wordId, quality } = request;
+      const success = await updateWordAfterReview(wordId, quality);
+      sendResponse({ success });
+    } catch (error) {
+      console.error('updateWordReview: Failed:', error);
+      sendResponse({ success: false, error: error.message });
+    }
+  } else if (request.action === "getReviewStats") {
+    try {
+      const stats = await getReviewStats();
+      sendResponse({ stats });
+    } catch (error) {
+      console.error('getReviewStats: Failed:', error);
+      sendResponse({ stats: null, error: error.message });
     }
   }
   return true;
@@ -266,7 +294,12 @@ export async function extractVocab(text) {
           text: wordData.word,
           pos: wordData.pos,
           freq_rank: wordData.score, // Use the enhanced TF-IDF-like score
-          dates_encountered: [new Date().toISOString()]
+          dates_encountered: [new Date().toISOString()],
+          ease_factor: 2.5, // Initial ease factor for spaced repetition
+          interval: 1,
+          repetitions: 0,
+          next_review: null, // New words are due immediately
+          last_reviewed: null
         });
         console.log('Added new word to DB:', wordData.word);
 
@@ -470,6 +503,148 @@ async function addRelations(wordId, relations) {
   }
 }
 
+// Spaced Repetition Algorithm (SuperMemo SM-2)
+function calculateNextReview(word, quality) {
+  // quality: 0-5 (0=complete blackout, 5=perfect response)
+  let { ease_factor, interval, repetitions } = word;
+
+  // Initialize if first time
+  if (!ease_factor) ease_factor = 2.5;
+  if (!interval) interval = 1;
+  if (!repetitions) repetitions = 0;
+
+  if (quality >= 3) {
+    // Correct response
+    if (repetitions === 0) {
+      interval = 1;
+    } else if (repetitions === 1) {
+      interval = 6;
+    } else {
+      interval = Math.round(interval * ease_factor);
+    }
+    repetitions += 1;
+  } else {
+    // Incorrect response
+    repetitions = 0;
+    interval = 1;
+  }
+
+  // Adjust ease factor
+  ease_factor = Math.max(1.3, ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
+
+  const nextReview = new Date();
+  nextReview.setDate(nextReview.getDate() + interval);
+
+  return {
+    ease_factor: Math.round(ease_factor * 100) / 100,
+    interval,
+    repetitions,
+    next_review: nextReview.toISOString(),
+    last_reviewed: new Date().toISOString()
+  };
+}
+
+// Get words due for review
+async function getWordsDueForReview(limit = 20) {
+  const now = new Date().toISOString();
+  try {
+    const dueWords = await vocabDB.words
+      .where('next_review')
+      .belowOrEqual(now)
+      .or('next_review')
+      .equals(null)
+      .limit(limit)
+      .toArray();
+
+    // Also include new words (never reviewed)
+    const newWords = await vocabDB.words
+      .where('repetitions')
+      .equals(0)
+      .or('repetitions')
+      .equals(null)
+      .limit(limit - dueWords.length)
+      .toArray();
+
+    // Combine and remove duplicates
+    const allWords = [...dueWords];
+    for (const newWord of newWords) {
+      if (!allWords.find(w => w.id === newWord.id)) {
+        allWords.push(newWord);
+      }
+    }
+
+    return allWords.slice(0, limit);
+  } catch (error) {
+    console.error('Error getting words due for review:', error);
+    return [];
+  }
+}
+
+// Update word after review
+async function updateWordAfterReview(wordId, quality) {
+  try {
+    const word = await vocabDB.words.get(wordId);
+    if (!word) {
+      console.error('Word not found for review update:', wordId);
+      return false;
+    }
+
+    const updates = calculateNextReview(word, quality);
+    await vocabDB.words.update(wordId, updates);
+
+    console.log('Updated word after review:', word.text, 'quality:', quality, 'next review:', updates.next_review);
+    return true;
+  } catch (error) {
+    console.error('Error updating word after review:', error);
+    return false;
+  }
+}
+
+// Get review statistics
+async function getReviewStats() {
+  try {
+    const allWords = await vocabDB.words.toArray();
+    const now = new Date();
+
+    let totalWords = allWords.length;
+    let newWords = 0;
+    let learningWords = 0;
+    let matureWords = 0;
+    let dueToday = 0;
+
+    for (const word of allWords) {
+      if (!word.repetitions || word.repetitions === 0) {
+        newWords++;
+      } else if (word.repetitions < 3) {
+        learningWords++;
+      } else {
+        matureWords++;
+      }
+
+      if (!word.next_review || new Date(word.next_review) <= now) {
+        dueToday++;
+      }
+    }
+
+    return {
+      totalWords,
+      newWords,
+      learningWords,
+      matureWords,
+      dueToday
+    };
+  } catch (error) {
+    console.error('Error getting review stats:', error);
+    return {
+      totalWords: 0,
+      newWords: 0,
+      learningWords: 0,
+      matureWords: 0,
+      dueToday: 0
+    };
+  }
+}
+
 // Add vocab word from selection
 async function addVocabWord(selectedText) {
   const wordsArr = selectedText.toLowerCase().split(/\s+/);
@@ -483,7 +658,12 @@ async function addVocabWord(selectedText) {
           text: word,
           pos: 'Noun',
           freq_rank: 0.5,
-          dates_encountered: [new Date().toISOString()]
+          dates_encountered: [new Date().toISOString()],
+          ease_factor: 2.5, // Initial ease factor
+          interval: 1,
+          repetitions: 0,
+          next_review: null, // New words are due immediately
+          last_reviewed: null
         });
         if (staticTranslations[word]) {
           for (const [lang, meaning] of Object.entries(staticTranslations[word])) {

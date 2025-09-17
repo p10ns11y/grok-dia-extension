@@ -147,7 +147,118 @@ document.getElementById('next-card').addEventListener('click', () => {
   showCard();
 });
 
+// Review functionality
+let reviewWords = [];
+let currentReviewIndex = 0;
+let reviewStats = {};
+
+document.getElementById('start-review').addEventListener('click', () => {
+  startReview();
+});
+
+document.getElementById('review-again').addEventListener('click', () => {
+  startReview();
+});
+
+// Review button event listeners
+document.querySelectorAll('.review-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    const quality = parseInt(e.target.dataset.quality);
+    submitReview(quality);
+  });
+});
+
+async function startReview() {
+  try {
+    // Get review statistics
+    const statsResponse = await new Promise((resolve) => {
+      chrome.runtime.sendMessage({ action: "getReviewStats" }, resolve);
+    });
+
+    if (statsResponse.stats) {
+      reviewStats = statsResponse.stats;
+      updateReviewStatsDisplay();
+    }
+
+    // Get words due for review
+    const wordsResponse = await new Promise((resolve) => {
+      chrome.runtime.sendMessage({ action: "getReviewWords", limit: 20 }, resolve);
+    });
+
+    if (wordsResponse.words && wordsResponse.words.length > 0) {
+      reviewWords = wordsResponse.words;
+      currentReviewIndex = 0;
+      showReviewCard();
+    } else {
+      showReviewComplete();
+    }
+
+    // Switch to review view
+    document.getElementById('vocab-list-view').style.display = 'none';
+    document.getElementById('vocab-graph-view').style.display = 'none';
+    document.getElementById('flashcard-view').style.display = 'none';
+    document.getElementById('review-view').style.display = 'block';
+
+  } catch (error) {
+    console.error('Error starting review:', error);
+  }
+}
+
+function updateReviewStatsDisplay() {
+  document.getElementById('review-total').textContent = reviewStats.totalWords || 0;
+  document.getElementById('review-new').textContent = reviewStats.newWords || 0;
+  document.getElementById('review-due').textContent = reviewStats.dueToday || 0;
+  document.getElementById('review-stats').style.display = 'flex';
+}
+
+function showReviewCard() {
+  if (currentReviewIndex < reviewWords.length) {
+    const word = reviewWords[currentReviewIndex];
+    document.getElementById('review-word').textContent = word.text;
+
+    // Show translations
+    const translations = allTranslations.filter(t => t.word_id === word.id);
+    const translationText = translations.map(t => `${t.lang}: ${t.meaning}`).join(' | ') || 'No translations available';
+    document.getElementById('review-translations').textContent = translationText;
+
+    document.getElementById('review-card').style.display = 'block';
+    document.getElementById('review-complete').style.display = 'none';
+  } else {
+    showReviewComplete();
+  }
+}
+
+async function submitReview(quality) {
+  if (currentReviewIndex < reviewWords.length) {
+    const word = reviewWords[currentReviewIndex];
+
+    try {
+      // Update the word in the database with the review result
+      await new Promise((resolve) => {
+        chrome.runtime.sendMessage({
+          action: "updateWordReview",
+          wordId: word.id,
+          quality: quality
+        }, resolve);
+      });
+
+      currentReviewIndex++;
+      showReviewCard();
+    } catch (error) {
+      console.error('Error submitting review:', error);
+    }
+  }
+}
+
+function showReviewComplete() {
+  document.getElementById('review-card').style.display = 'none';
+  document.getElementById('review-complete').style.display = 'block';
+}
+
 function buildGraph() {
+  console.log('Building graph...');
+  console.log('allWords:', allWords.length, 'allRelations:', allRelations.length);
+
   // Stop any existing simulation
   if (currentSimulation) {
     currentSimulation.stop();
@@ -160,31 +271,37 @@ function buildGraph() {
   const width = 800;
   const height = 600;
 
-  // Limit nodes to prevent performance issues (top 20 most frequent words)
-  const topWords = allWords
-    .sort((a, b) => b.freq_rank - a.freq_rank)
-    .slice(0, 20);
-
-  // Prepare nodes and links (only for top words)
-  const nodes = topWords.map(w => ({
+  // Simple approach: show all words, limit to reasonable number
+  const maxNodes = 15;
+  const nodes = allWords.slice(0, maxNodes).map((w, i) => ({
     id: w.id,
-    text: w.text,
+    text: w.text.length > 12 ? w.text.substring(0, 10) + '...' : w.text,
     pos: w.pos,
-    freq: w.freq_rank
+    freq: w.freq_rank || 1,
+    x: (i % 5) * 150 + 100, // Simple grid layout
+    y: Math.floor(i / 5) * 120 + 100
   }));
 
-  // Filter relations to only include connections between top words
-  const nodeIds = new Set(nodes.map(n => n.id));
-  const links = allRelations
-    .filter(r => nodeIds.has(r.word_id) && nodeIds.has(r.related_id))
-    .map(r => ({
-      source: r.word_id,
-      target: r.related_id,
-      type: r.type,
-      strength: Math.max(0.1, r.similarity_percentage / 100) // Ensure minimum strength
-    }));
+  console.log('Created nodes:', nodes.length, nodes);
 
-  console.log(`Building graph with ${nodes.length} nodes and ${links.length} links`);
+  // Create some basic links if we have relations
+  const links = [];
+  if (allRelations && allRelations.length > 0) {
+    // Simple approach: connect first few related words
+    const nodeIds = new Set(nodes.map(n => n.id));
+    allRelations.slice(0, 10).forEach(rel => {
+      if (nodeIds.has(rel.word_id) && nodeIds.has(rel.related_id)) {
+        links.push({
+          source: rel.word_id,
+          target: rel.related_id,
+          type: rel.type,
+          strength: 0.5
+        });
+      }
+    });
+  }
+
+  console.log('Created links:', links.length, links);
 
   if (nodes.length === 0) {
     svg.append('text')
@@ -197,165 +314,64 @@ function buildGraph() {
     return;
   }
 
-  // Create force simulation with optimized settings
-  const simulation = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links)
-      .id(d => d.id)
-      .distance(d => d.type === 'synonym' ? Math.max(30, 80 / d.strength) : Math.max(60, 150 / d.strength))
-      .strength(0.7)
-    )
-    .force('charge', d3.forceManyBody().strength(-200).distanceMax(200))
-    .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius(d => 15 + d.freq * 5));
+  // Add a background for visibility
+  svg.append('rect')
+    .attr('width', width)
+    .attr('height', height)
+    .attr('fill', 'rgba(255,255,255,0.1)');
 
-  currentSimulation = simulation;
+  // Simple static layout first - just draw nodes and labels
+  console.log('Drawing simple graph layout...');
 
-  // Create arrow markers for directed links
-  const defs = svg.append('defs');
-  defs.append('marker')
-    .attr('id', 'arrow-synonym')
-    .attr('viewBox', '0 -5 10 10')
-    .attr('refX', 20)
-    .attr('refY', 0)
-    .attr('markerWidth', 6)
-    .attr('markerHeight', 6)
-    .attr('orient', 'auto')
-    .append('path')
-    .attr('d', 'M0,-5L10,0L0,5')
-    .attr('fill', '#4CAF50');
+  // Draw links first (so they appear behind nodes)
+  if (links.length > 0) {
+    svg.selectAll('line')
+      .data(links)
+      .enter().append('line')
+      .attr('x1', d => {
+        const sourceNode = nodes.find(n => n.id === d.source);
+        return sourceNode ? sourceNode.x : 0;
+      })
+      .attr('y1', d => {
+        const sourceNode = nodes.find(n => n.id === d.source);
+        return sourceNode ? sourceNode.y : 0;
+      })
+      .attr('x2', d => {
+        const targetNode = nodes.find(n => n.id === d.target);
+        return targetNode ? targetNode.x : 0;
+      })
+      .attr('y2', d => {
+        const targetNode = nodes.find(n => n.id === d.target);
+        return targetNode ? targetNode.y : 0;
+      })
+      .attr('stroke', d => d.type === 'synonym' ? '#4CAF50' : '#F44336')
+      .attr('stroke-width', 2)
+      .attr('stroke-opacity', 0.6);
+  }
 
-  defs.append('marker')
-    .attr('id', 'arrow-antonym')
-    .attr('viewBox', '0 -5 10 10')
-    .attr('refX', 20)
-    .attr('refY', 0)
-    .attr('markerWidth', 6)
-    .attr('markerHeight', 6)
-    .attr('orient', 'auto')
-    .append('path')
-    .attr('d', 'M0,-5L10,0L0,5')
-    .attr('fill', '#F44336');
-
-  // Links
-  const link = svg.append('g')
-    .selectAll('line')
-    .data(links)
-    .enter().append('line')
-    .attr('stroke', d => d.type === 'synonym' ? '#4CAF50' : '#F44336')
-    .attr('stroke-width', d => Math.max(1, Math.min(3, d.strength * 2)))
-    .attr('stroke-opacity', 0.6)
-    .attr('marker-end', d => d.type === 'synonym' ? 'url(#arrow-synonym)' : 'url(#arrow-antonym)');
-
-  // Nodes
-  const node = svg.append('g')
-    .selectAll('circle')
+  // Draw nodes
+  const nodeGroup = svg.selectAll('.node')
     .data(nodes)
-    .enter().append('circle')
-    .attr('r', d => Math.max(8, Math.min(20, 8 + d.freq * 8)))
+    .enter().append('g')
+    .attr('class', 'node')
+    .attr('transform', d => `translate(${d.x}, ${d.y})`);
+
+  // Node circles
+  nodeGroup.append('circle')
+    .attr('r', d => Math.max(15, Math.min(25, 15 + d.freq * 5)))
     .attr('fill', d => d.pos === 'Noun' ? '#2196F3' : '#FF9800')
     .attr('stroke', '#fff')
-    .attr('stroke-width', 2)
-    .style('cursor', 'pointer')
-    .call(d3.drag()
-      .on('start', dragstarted)
-      .on('drag', dragged)
-      .on('end', dragended));
+    .attr('stroke-width', 3)
+    .style('cursor', 'pointer');
 
-  // Labels
-  const label = svg.append('g')
-    .selectAll('text')
-    .data(nodes)
-    .enter().append('text')
-    .text(d => d.text.length > 10 ? d.text.substring(0, 8) + '...' : d.text)
-    .attr('font-size', '11px')
-    .attr('font-weight', '500')
+  // Node labels
+  nodeGroup.append('text')
     .attr('text-anchor', 'middle')
-    .attr('fill', '#333')
-    .attr('pointer-events', 'none')
-    .attr('dy', -20);
+    .attr('dy', '0.35em')
+    .attr('font-size', '12px')
+    .attr('font-weight', '600')
+    .attr('fill', '#fff')
+    .text(d => d.text);
 
-  // Tooltip
-  const tooltip = d3.select('body').append('div')
-    .attr('class', 'tooltip')
-    .style('position', 'absolute')
-    .style('visibility', 'hidden')
-    .style('background', 'rgba(0, 0, 0, 0.8)')
-    .style('color', 'white')
-    .style('padding', '8px')
-    .style('border-radius', '4px')
-    .style('font-size', '12px')
-    .style('pointer-events', 'none')
-    .style('z-index', '1000');
-
-  // Add hover effects
-  node.on('mouseover', function(event, d) {
-    tooltip.style('visibility', 'visible')
-      .text(`${d.text} (${d.pos}) - Frequency: ${d.freq.toFixed(2)}`);
-  })
-  .on('mousemove', function(event) {
-    tooltip.style('top', (event.pageY - 10) + 'px')
-      .style('left', (event.pageX + 10) + 'px');
-  })
-  .on('mouseout', function() {
-    tooltip.style('visibility', 'hidden');
-  });
-
-  // Simulation tick handler
-  let tickCount = 0;
-  simulation.on('tick', () => {
-    tickCount++;
-
-    link
-      .attr('x1', d => d.source.x)
-      .attr('y1', d => d.source.y)
-      .attr('x2', d => d.target.x)
-      .attr('y2', d => d.target.y);
-
-    node
-      .attr('cx', d => d.x)
-      .attr('cy', d => d.y);
-
-    label
-      .attr('x', d => d.x)
-      .attr('y', d => d.y);
-
-    // Stop simulation after it stabilizes (around 100 ticks)
-    if (tickCount > 100 && simulation.alpha() < 0.01) {
-      simulation.stop();
-      console.log('Graph simulation stabilized and stopped');
-    }
-  });
-
-  // Auto-stop after 10 seconds to prevent infinite running
-  setTimeout(() => {
-    if (simulation.alpha() > 0.01) {
-      simulation.stop();
-      console.log('Graph simulation auto-stopped after 10 seconds');
-    }
-  }, 10000);
-
-  function dragstarted(event, d) {
-    if (!event.active) simulation.alphaTarget(0.3).restart();
-    d.fx = d.x;
-    d.fy = d.y;
-  }
-
-  function dragged(event, d) {
-    d.fx = event.x;
-    d.fy = event.y;
-  }
-
-  function dragended(event, d) {
-    if (!event.active) simulation.alphaTarget(0);
-    d.fx = null;
-    d.fy = null;
-  }
-
-  // Cleanup function for when view changes
-  window.addEventListener('beforeunload', () => {
-    if (currentSimulation) {
-      currentSimulation.stop();
-    }
-    tooltip.remove();
-  });
+  console.log('Graph rendered with', nodes.length, 'nodes and', links.length, 'links');
 }
