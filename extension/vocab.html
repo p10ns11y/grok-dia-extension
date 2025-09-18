@@ -349,6 +349,169 @@
       color: #718096;
       margin-top: 4px;
     }
+
+    .flashcard-container {
+      text-align: center;
+      padding: 40px 20px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .flashcard-card {
+      background: rgba(255,255,255,0.95);
+      border-radius: 20px;
+      padding: 40px;
+      margin: 20px 0;
+      border: 2px solid rgba(102, 126, 234, 0.2);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      backdrop-filter: blur(20px);
+      animation: cardSlideIn 0.5s ease-out;
+    }
+
+    .flashcard-word {
+      font-size: 3rem;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 30px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .flashcard-meaning {
+      font-size: 18px;
+      color: #4a5568;
+      margin: 20px 0;
+      line-height: 1.6;
+      background: rgba(102, 126, 234, 0.05);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(102, 126, 234, 0.1);
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .flashcard-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 30px;
+      flex-wrap: wrap;
+    }
+
+    .flashcard-progress {
+      margin-top: 20px;
+      font-size: 16px;
+      color: #718096;
+      font-weight: 500;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .mode-indicator {
+      background: rgba(102, 126, 234, 0.1);
+      border: 1px solid rgba(102, 126, 234, 0.2);
+      border-radius: 12px;
+      padding: 12px 20px;
+      margin-bottom: 20px;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    .mode-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mode-info #current-mode-text {
+      font-weight: 600;
+      color: #667eea;
+    }
+
+    .graph-container {
+      min-height: calc(100vh - 200px);
+      background: rgba(255,255,255,0.95);
+      border-radius: 20px;
+      padding: 30px;
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.2);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .graph-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .graph-header h2 {
+      color: #2d3748;
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .graph-subtitle {
+      color: #718096;
+      font-size: 1rem;
+      font-weight: 400;
+    }
+
+    .graph-controls {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .graph-legend {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #4a5568;
+      font-weight: 500;
+    }
+
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.5);
+    }
+
+    .legend-line {
+      width: 24px;
+      height: 3px;
+      border-radius: 2px;
+    }
+
+    #vocab-graph {
+      flex: 1;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+      border-radius: 12px;
+      border: 1px solid rgba(102, 126, 234, 0.1);
+    }
   </style>
 </head>
 <body>
@@ -380,20 +543,94 @@
         </button>
       </div>
     </div>
+
+    <div class="mode-indicator" id="mode-indicator" style="display: none;">
+      <div class="mode-info">
+        <span id="current-mode-text">List View</span>
+        <button class="btn-outline" id="exit-mode">⬅️ Back to List</button>
+      </div>
+    </div>
     <div id="vocab-list-view">
       <ul class="vocab-list" id="vocab-list">
         <li>Loading...</li>
       </ul>
     </div>
     <div id="vocab-graph-view" style="display: none;">
-      <svg id="vocab-graph" width="800" height="600"></svg>
+      <div class="graph-container">
+        <div class="graph-header">
+          <h2>🕸️ Vocabulary Relationship Graph</h2>
+          <p class="graph-subtitle">Explore semantic connections between words</p>
+        </div>
+        <div class="graph-controls">
+          <div class="graph-legend">
+            <div class="legend-item">
+              <div class="legend-color" style="background: #2196F3;"></div>
+              <span>Nouns</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background: #FF9800;"></div>
+              <span>Other POS</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-line" style="background: #4CAF50;"></div>
+              <span>Synonyms</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-line" style="background: #F44336;"></div>
+              <span>Antonyms</span>
+            </div>
+          </div>
+        </div>
+        <svg id="vocab-graph" width="100%" height="100%"></svg>
+      </div>
     </div>
     <div id="flashcard-view" style="display: none;">
-      <div id="flashcard">
-        <div id="flashcard-word">Word</div>
-        <button id="show-meaning">Show Meaning</button>
-        <div id="flashcard-meaning" style="display: none;">Meaning</div>
-        <button id="next-card">Next</button>
+      <div class="flashcard-container">
+        <div class="flashcard-card" id="flashcard">
+          <div class="flashcard-word" id="flashcard-word">Word</div>
+          <button class="btn-secondary" id="show-meaning">👁️ Show Meaning</button>
+          <div class="flashcard-meaning" id="flashcard-meaning" style="display: none;">Meaning</div>
+          <div class="flashcard-buttons">
+            <button class="btn-outline" id="prev-card">⬅️ Previous</button>
+            <button class="btn-primary" id="next-card">Next ➡️</button>
+          </div>
+        </div>
+        <div class="flashcard-progress">
+          <span id="flashcard-counter">1 / 10</span>
+        </div>
+      </div>
+    </div>
+    <div id="review-view" style="display: none;">
+      <div class="review-section">
+        <h2>📚 Spaced Repetition Review</h2>
+        <div id="review-stats" class="review-stats" style="display: none;">
+          <div class="stat-item">
+            <div class="stat-value" id="review-total">0</div>
+            <div class="stat-label">Total Words</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="review-new">0</div>
+            <div class="stat-label">New</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="review-due">0</div>
+            <div class="stat-label">Due Today</div>
+          </div>
+        </div>
+        <div id="review-card" class="review-card" style="display: none;">
+          <div class="review-word" id="review-word">Loading...</div>
+          <div class="review-translations" id="review-translations"></div>
+          <div class="review-buttons">
+            <button class="review-btn hard" data-quality="1">Hard</button>
+            <button class="review-btn good" data-quality="3">Good</button>
+            <button class="review-btn easy" data-quality="5">Easy</button>
+          </div>
+        </div>
+        <div id="review-complete" style="display: none;">
+          <h3>🎉 Review Complete!</h3>
+          <p>All words have been reviewed. Great job!</p>
+          <button class="btn-primary" id="review-again">Review Again</button>
+        </div>
       </div>
     </div>
   </div>
