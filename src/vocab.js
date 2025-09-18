@@ -18,6 +18,7 @@ let allRelations = [];
 let currentView = 'list';
 let searchIndex;
 let currentSimulation = null; // Track current simulation for cleanup
+let currentGraphWords = []; // Track which words are currently shown in graph
 
 document.addEventListener('DOMContentLoaded', () => {
   loadVocab();
@@ -114,6 +115,14 @@ document.getElementById('toggle-view').addEventListener('click', () => {
   if (currentView === 'graph') {
     buildGraph();
   }
+});
+
+document.getElementById('shuffle-graph').addEventListener('click', () => {
+  shuffleGraphWords();
+});
+
+document.getElementById('expand-graph').addEventListener('click', () => {
+  expandGraphWords();
 });
 
 document.getElementById('exit-mode').addEventListener('click', () => {
@@ -413,6 +422,73 @@ function buildGraph() {
   console.log('Building graph...');
   console.log('allWords:', allWords.length, 'allRelations:', allRelations.length);
 
+  // Initialize currentGraphWords if not set
+  if (!currentGraphWords || currentGraphWords.length === 0) {
+    const maxNodes = Math.min(20, allWords.length);
+    currentGraphWords = allWords.slice(0, maxNodes);
+    console.log('Initialized currentGraphWords with', currentGraphWords.length, 'words');
+  }
+
+  // Use currentGraphWords for building the graph
+  buildGraphWithWords(currentGraphWords);
+}
+
+function shuffleGraphWords() {
+  console.log('Shuffling graph words...');
+
+  if (allWords.length === 0) {
+    console.warn('No words available to shuffle');
+    return;
+  }
+
+  // Randomly select a subset of words
+  const shuffledWords = [...allWords].sort(() => Math.random() - 0.5);
+  const selectedWords = shuffledWords.slice(0, Math.min(20, shuffledWords.length));
+
+  // Update current graph words
+  currentGraphWords = selectedWords;
+
+  console.log('Selected', selectedWords.length, 'random words for graph');
+
+  // Rebuild graph with new words
+  buildGraphWithWords(selectedWords);
+}
+
+function expandGraphWords() {
+  console.log('Expanding graph to show more words...');
+
+  if (allWords.length === 0) {
+    console.warn('No words available to expand');
+    return;
+  }
+
+  // Get current word count and increase it
+  const currentCount = currentGraphWords.length || 20;
+  const newCount = Math.min(currentCount + 10, allWords.length);
+
+  // Randomly select more words
+  const remainingWords = allWords.filter(word =>
+    !currentGraphWords.find(cw => cw.id === word.id)
+  );
+
+  const additionalWords = remainingWords
+    .sort(() => Math.random() - 0.5)
+    .slice(0, newCount - currentCount);
+
+  const expandedWords = [...currentGraphWords, ...additionalWords];
+
+  // Update current graph words
+  currentGraphWords = expandedWords;
+
+  console.log('Expanded to', expandedWords.length, 'words for graph');
+
+  // Rebuild graph with expanded words
+  buildGraphWithWords(expandedWords);
+}
+
+function buildGraphWithWords(selectedWords) {
+  console.log('Building graph with', selectedWords.length, 'selected words');
+
   // Stop any existing simulation
   if (currentSimulation) {
     currentSimulation.stop();
@@ -425,17 +501,16 @@ function buildGraph() {
   // Get container dimensions for responsive sizing
   const container = document.querySelector('.graph-container');
   const containerRect = container.getBoundingClientRect();
-  const width = containerRect.width - 60; // Account for padding
-  const height = Math.max(500, containerRect.height - 200); // Minimum height with header space
+  const width = containerRect.width - 60;
+  const height = Math.max(500, containerRect.height - 200);
 
   console.log('Graph dimensions:', width, 'x', height);
 
-  // Enhanced approach: show all words with better positioning
-  const maxNodes = Math.min(20, allWords.length);
-  const nodes = allWords.slice(0, maxNodes).map((w, i) => {
+  // Create nodes from selected words
+  const nodes = selectedWords.map((w, i) => {
     // Create a more organic layout
-    const cols = Math.ceil(Math.sqrt(maxNodes));
-    const rows = Math.ceil(maxNodes / cols);
+    const cols = Math.ceil(Math.sqrt(selectedWords.length));
+    const rows = Math.ceil(selectedWords.length / cols);
 
     const col = i % cols;
     const row = Math.floor(i / cols);
@@ -454,26 +529,26 @@ function buildGraph() {
     };
   });
 
-  console.log('Created nodes:', nodes.length, nodes);
+  console.log('Created nodes:', nodes.length);
 
-  // Create some basic links if we have relations
+  // Create links from relations for selected words
   const links = [];
+  const selectedWordIds = new Set(selectedWords.map(w => w.id));
+
   if (allRelations && allRelations.length > 0) {
-    // Simple approach: connect first few related words
-    const nodeIds = new Set(nodes.map(n => n.id));
-    allRelations.slice(0, 50).forEach(rel => {
-      if (nodeIds.has(rel.word_id) && nodeIds.has(rel.related_id)) {
+    allRelations.forEach(rel => {
+      if (selectedWordIds.has(rel.word_id) && selectedWordIds.has(rel.related_id)) {
         links.push({
           source: rel.word_id,
           target: rel.related_id,
           type: rel.type,
-          strength: 0.5
+          strength: rel.similarity_percentage / 100
         });
       }
     });
   }
 
-  console.log('Created links:', links.length, links);
+  console.log('Created links:', links.length);
 
   if (nodes.length === 0) {
     svg.append('text')
@@ -508,7 +583,7 @@ function buildGraph() {
     .attr('fill', 'url(#graph-bg)')
     .attr('rx', 12);
 
-  console.log('Drawing enhanced graph layout...');
+  console.log('Drawing shuffled graph layout...');
 
   // Draw links first (so they appear behind nodes)
   if (links.length > 0) {
@@ -573,7 +648,7 @@ function buildGraph() {
     .attr('dy', '0.35em')
     .attr('font-size', d => Math.max(11, Math.min(14, 11 + d.freq * 2)))
     .attr('font-weight', '700')
-    .attr('fill', '#2d3748') // Dark text for visibility
+    .attr('fill', '#2d3748')
     .attr('text-shadow', '0 1px 2px rgba(255,255,255,0.8)')
     .text(d => d.text);
 
@@ -585,5 +660,5 @@ function buildGraph() {
     .attr('stroke-width', 1)
     .attr('pointer-events', 'none');
 
-  console.log('Enhanced graph rendered with', nodes.length, 'nodes and', links.length, 'links');
+  console.log('Shuffled graph rendered with', nodes.length, 'nodes and', links.length, 'links');
 }
