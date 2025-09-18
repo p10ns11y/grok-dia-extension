@@ -18,6 +18,11 @@ vocabDB.open().then(() => {
   console.error('VocabDB initialization failed:', error);
 });
 
+// Add error handling for database operations
+vocabDB.on('error', (error) => {
+  console.error('Dexie database error:', error);
+});
+
 // Common word corpus (expanded for better filtering)
 export const commonWords = new Set([
   'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'i', 'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at',
@@ -546,36 +551,66 @@ function calculateNextReview(word, quality) {
 
 // Get words due for review
 async function getWordsDueForReview(limit = 20) {
+  console.log('getWordsDueForReview: Starting with limit:', limit);
   const now = new Date().toISOString();
+  console.log('getWordsDueForReview: Current time (ISO):', now);
+
   try {
+    // First, let's check if the database is ready
+    if (!vocabDB.isOpen()) {
+      console.error('getWordsDueForReview: Database is not open');
+      return [];
+    }
+
+    // Get all words to see what's in the database
+    const allWordsInDB = await vocabDB.words.toArray();
+    console.log('getWordsDueForReview: Total words in DB:', allWordsInDB.length);
+
+    // Get words that are due for review (next_review <= now)
+    console.log('getWordsDueForReview: Querying due words...');
     const dueWords = await vocabDB.words
       .where('next_review')
       .belowOrEqual(now)
-      .or('next_review')
-      .equals(null)
-      .limit(limit)
       .toArray();
+    console.log('getWordsDueForReview: Found due words:', dueWords.length);
 
-    // Also include new words (never reviewed)
+    // Get words that have never been reviewed (next_review is null)
+    console.log('getWordsDueForReview: Querying new words...');
     const newWords = await vocabDB.words
-      .where('repetitions')
-      .equals(0)
-      .or('repetitions')
+      .where('next_review')
       .equals(null)
-      .limit(limit - dueWords.length)
       .toArray();
+    console.log('getWordsDueForReview: Found new words:', newWords.length);
 
     // Combine and remove duplicates
     const allWords = [...dueWords];
+    console.log('getWordsDueForReview: Starting with due words:', allWords.length);
+
     for (const newWord of newWords) {
       if (!allWords.find(w => w.id === newWord.id)) {
         allWords.push(newWord);
       }
     }
+    console.log('getWordsDueForReview: After adding new words:', allWords.length);
 
-    return allWords.slice(0, limit);
+    // Sort by priority (new words first, then by next_review date)
+    allWords.sort((a, b) => {
+      // New words (never reviewed) come first
+      if (!a.next_review && !b.next_review) return 0;
+      if (!a.next_review) return -1;
+      if (!b.next_review) return 1;
+
+      // Then sort by next_review date
+      return new Date(a.next_review) - new Date(b.next_review);
+    });
+
+    const result = allWords.slice(0, limit);
+    console.log('getWordsDueForReview: Returning', result.length, 'words');
+    return result;
   } catch (error) {
     console.error('Error getting words due for review:', error);
+    console.error('Error details:', error.message);
+    console.error('Error stack:', error.stack);
     return [];
   }
 }
@@ -602,9 +637,11 @@ async function updateWordAfterReview(wordId, quality) {
 
 // Get review statistics
 async function getReviewStats() {
+  console.log('getReviewStats: Starting...');
   try {
     const allWords = await vocabDB.words.toArray();
     const now = new Date();
+    console.log('getReviewStats: Found', allWords.length, 'words in database');
 
     let totalWords = allWords.length;
     let newWords = 0;
@@ -626,15 +663,19 @@ async function getReviewStats() {
       }
     }
 
-    return {
+    const stats = {
       totalWords,
       newWords,
       learningWords,
       matureWords,
       dueToday
     };
+
+    console.log('getReviewStats: Returning stats:', stats);
+    return stats;
   } catch (error) {
     console.error('Error getting review stats:', error);
+    console.error('Error details:', error.message);
     return {
       totalWords: 0,
       newWords: 0,
