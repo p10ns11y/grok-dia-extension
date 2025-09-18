@@ -473,8 +473,17 @@
 
     .graph-controls {
       display: flex;
-      justify-content: center;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .graph-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
     }
 
     .graph-legend {
@@ -562,6 +571,16 @@
           <p class="graph-subtitle">Explore semantic connections between words</p>
         </div>
         <div class="graph-controls">
+          <div class="graph-actions">
+            <button class="btn-outline" id="shuffle-graph">
+              <span class="btn-icon">🔀</span>
+              Shuffle Words
+            </button>
+            <button class="btn-outline" id="expand-graph">
+              <span class="btn-icon">📈</span>
+              Show More
+            </button>
+          </div>
           <div class="graph-legend">
             <div class="legend-item">
               <div class="legend-color" style="background: #2196F3;"></div>
