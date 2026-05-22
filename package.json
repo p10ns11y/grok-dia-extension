@@ -1,18 +1,20 @@
 {
-  "name": "grok-dia-extension",
-  "version": "2.0.0",
+  "name": "ask-grok-extension",
+  "version": "3.0.0",
+  "private": true,
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "vite build --watch",
-    "build": "vite build",
-    "postbuild": "cp src/manifest.json src/popup.html src/vocab.html src/options.html src/icon.png extension/",
-    "clean": "rm -rf extension"
-  },
-  "dependencies": {
-    "compromise": "^14.14.4",
-    "dexie": "^4.0.9",
-    "d3": "^7.9.0",
-    "lunr": "^2.3.9"
+    "build": "npm run build -w grok-bridge && npm run build -w vocab-study",
+    "build:grok": "npm run build -w grok-bridge",
+    "build:vocab": "npm run build -w vocab-study",
+    "dev:grok": "npm run dev -w grok-bridge",
+    "dev:vocab": "npm run dev -w vocab-study",
+    "clean": "npm run clean -w grok-bridge && npm run clean -w vocab-study",
+    "link-extensions": "node scripts/link-extensions.mjs"
   },
   "devDependencies": {
     "vite": "^6.1.1"

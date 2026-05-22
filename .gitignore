@@ -13,6 +13,9 @@ node_modules/
 # Build output
 dist/
 build/
+extension/
+apps/grok-bridge/dist/
+apps/vocab-study/dist/
 
 # IDE
 .vscode/

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vocab Study</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #f0f4f8;
+      color: #2d3748;
+      min-height: 100vh;
+    }
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px 24px;
+    }
+    header h1 { font-size: 22px; font-weight: 600; }
+    header p { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+    main { max-width: 720px; margin: 0 auto; padding: 20px 24px 40px; }
+    .stats {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .stat {
+      flex: 1;
+      min-width: 100px;
+      background: white;
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .stat strong { display: block; font-size: 22px; color: #667eea; }
+    .stat span { font-size: 12px; color: #718096; }
+    .panel {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .panel h2 { font-size: 16px; margin-bottom: 12px; color: #4a5568; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tab {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #edf2f7;
+      color: #4a5568;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .tab.active { background: #667eea; color: white; }
+    .hidden { display: none !important; }
+    .review-card { text-align: center; padding: 24px 12px; }
+    .review-word { font-size: 32px; font-weight: 600; margin-bottom: 12px; }
+    .review-snippet {
+      font-size: 14px;
+      color: #718096;
+      font-style: italic;
+      margin-bottom: 16px;
+      line-height: 1.5;
+      max-height: 80px;
+      overflow: hidden;
+    }
+    .review-answer {
+      font-size: 16px;
+      line-height: 1.6;
+      text-align: left;
+      background: #f7fafc;
+      padding: 14px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      white-space: pre-wrap;
+    }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-primary { background: #667eea; color: white; }
+    .btn-secondary { background: #edf2f7; color: #4a5568; }
+    .btn-again { background: #fed7d7; color: #c53030; }
+    .btn-hard { background: #feebc8; color: #c05621; }
+    .btn-good { background: #c6f6d5; color: #276749; }
+    .btn-easy { background: #bee3f8; color: #2b6cb0; }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    textarea { min-height: 72px; resize: vertical; }
+    #word-list { list-style: none; }
+    #word-list li {
+      padding: 12px 0;
+      border-bottom: 1px solid #edf2f7;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    #word-list li:last-child { border-bottom: none; }
+    .word-meta { flex: 1; }
+    .word-meta strong { font-size: 16px; }
+    .word-meta small { display: block; color: #718096; margin-top: 4px; font-size: 12px; }
+    .empty { color: #a0aec0; text-align: center; padding: 24px; font-style: italic; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Vocab Study</h1>
+    <p>Save words while reading. Review with spaced repetition.</p>
+  </header>
+  <main>
+    <div class="stats" id="stats">
+      <div class="stat"><strong id="stat-due">0</strong><span>Due today</span></div>
+      <div class="stat"><strong id="stat-total">0</strong><span>Total</span></div>
+      <div class="stat"><strong id="stat-new">0</strong><span>New</span></div>
+      <div class="stat"><strong id="stat-learning">0</strong><span>Learning</span></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="review">Review</button>
+      <button class="tab" data-tab="add">Add word</button>
+      <button class="tab" data-tab="list">Word list</button>
+    </div>
+
+    <section id="panel-review" class="panel">
+      <div id="review-idle">
+        <p class="empty" id="review-idle-msg">Loading...</p>
+        <button class="btn-primary" id="start-review">Start review</button>
+      </div>
+      <div id="review-active" class="hidden">
+        <div class="review-card">
+          <div class="review-word" id="card-word"></div>
+          <div class="review-snippet" id="card-snippet"></div>
+          <div id="card-answer-wrap" class="hidden">
+            <div class="review-answer" id="card-answer"></div>
+          </div>
+          <div class="btn-row" id="reveal-row">
+            <button class="btn-primary" id="reveal-btn">Reveal definition</button>
+          </div>
+          <div class="btn-row hidden" id="grade-row">
+            <button class="btn-again" data-quality="0">Again</button>
+            <button class="btn-hard" data-quality="1">Hard</button>
+            <button class="btn-good" data-quality="3">Good</button>
+            <button class="btn-easy" data-quality="5">Easy</button>
+          </div>
+          <p style="margin-top:12px;font-size:12px;color:#a0aec0" id="review-progress"></p>
+        </div>
+      </div>
+      <div id="review-done" class="hidden">
+        <p class="empty">Review complete for this session.</p>
+        <button class="btn-secondary" id="review-again">Review again</button>
+      </div>
+    </section>
+
+    <section id="panel-add" class="panel hidden">
+      <h2>Add word manually</h2>
+      <input type="text" id="add-word" placeholder="Word" />
+      <textarea id="add-definition" placeholder="Definition (English)"></textarea>
+      <textarea id="add-snippet" placeholder="Sentence or context (optional)"></textarea>
+      <input type="text" id="add-url" placeholder="Source URL (optional)" />
+      <button class="btn-primary" id="add-save">Save word</button>
+      <hr style="margin:16px 0;border:none;border-top:1px solid #edf2f7" />
+      <h2>Extract from active tab</h2>
+      <p style="font-size:13px;color:#718096;margin-bottom:10px">Top 10 nouns/verbs/adjectives on the current page (manual).</p>
+      <button class="btn-secondary" id="extract-page">Extract from page</button>
+      <p id="extract-status" style="font-size:13px;margin-top:8px;color:#667eea"></p>
+    </section>
+
+    <section id="panel-list" class="panel hidden">
+      <input type="text" id="search" placeholder="Search words..." />
+      <ul id="word-list"></ul>
+      <p class="empty hidden" id="list-empty">No words yet. Save from a page or add manually.</p>
+    </section>
+  </main>
+  <script type="module" src="study.js"></script>
+</body>
+</html>
