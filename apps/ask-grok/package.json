@@ -1,0 +1,15 @@
+{
+  "name": "ask-grok",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build && npm run postbuild",
+    "postbuild": "cp src/manifest.json src/popup.html src/options.html src/icon.png dist/",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "vite": "^6.1.1"
+  }
+}

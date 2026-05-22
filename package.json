@@ -1,0 +1,22 @@
+{
+  "name": "ask-grok-extension",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w ask-grok && npm run build -w vocab-builder",
+    "build:ask-grok": "npm run build -w ask-grok",
+    "build:vocab-builder": "npm run build -w vocab-builder",
+    "dev:ask-grok": "npm run dev -w ask-grok",
+    "dev:vocab-builder": "npm run dev -w vocab-builder",
+    "clean": "npm run clean -w ask-grok && npm run clean -w vocab-builder",
+    "link-extensions": "node scripts/link-extensions.mjs"
+  },
+  "devDependencies": {
+    "vite": "^6.1.1"
+  }
+}

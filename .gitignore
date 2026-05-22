@@ -13,6 +13,9 @@ node_modules/
 # Build output
 dist/
 build/
+extension/
+apps/ask-grok/dist/
+apps/vocab-builder/dist/
 
 # IDE
 .vscode/
