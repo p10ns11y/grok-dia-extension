@@ -1,4 +1,4 @@
-# Grok Dia
+# Ask Grok Extension
 
 **Secure bridge to xAI Grok API for browser queries. No tracking.**
 
@@ -13,7 +13,7 @@
 1. Download or clone this repository
 2. Open Chrome and go to `chrome://extensions/`
 3. Enable "Developer mode" in the top right
-4. Click "Load unpacked" and select the `grok-dia-extension` folder
+4. Click "Load unpacked" and select the `ask-grok-extension` folder
 5. The extension will be installed and ready to use
 
 ## Usage
