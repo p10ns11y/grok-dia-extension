@@ -1,4 +1,4 @@
-# Ask Grok Extension
+# Grok and Productivity Extensions
 
 **Secure bridge to xAI Grok API for browser queries. No tracking.**
 
