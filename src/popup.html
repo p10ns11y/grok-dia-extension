@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Grok Dia</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 350px;
+      min-height: 400px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .container {
+      background: rgba(255,255,255,0.95);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+
+    h3 {
+      text-align: center;
+      margin-bottom: 15px;
+      color: #4a5568;
+      font-weight: 600;
+      font-size: 18px;
+    }
+
+    p {
+      margin-bottom: 10px;
+      font-size: 14px;
+      color: #718096;
+    }
+
+    textarea {
+      width: 100%;
+      height: 80px;
+      padding: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      resize: vertical;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      margin-bottom: 15px;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      margin-bottom: 15px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.loading {
+      pointer-events: none;
+    }
+
+    .spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+      margin: 0 auto;
+    }
+
+    button.loading .spinner {
+      display: block;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    #response {
+      margin-top: 15px;
+      padding: 12px;
+      background: #f7fafc;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #e2e8f0;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .loading-text {
+      text-align: center;
+      color: #a0aec0;
+      font-style: italic;
+    }
+
+    #tab-container {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    #tab-container button {
+      margin: 0 5px;
+      width: auto;
+      padding: 8px 16px;
+      font-size: 12px;
+    }
+
+    #tab-container .active {
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+    }
+
+    .vocab-stats {
+      display: flex;
+      justify-content: space-around;
+      margin: 15px 0;
+      padding: 10px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .stat-item {
+      text-align: center;
+      flex: 1;
+    }
+
+    .stat-number {
+      font-size: 18px;
+      font-weight: 600;
+      color: #667eea;
+      display: block;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #718096;
+      margin-top: 2px;
+    }
+
+    .mini-graph {
+      width: 100%;
+      height: 120px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      margin: 15px 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .graph-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #a0aec0;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .vocab-item {
+      padding: 8px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .vocab-item:last-child {
+      border-bottom: none;
+    }
+
+    .vocab-word {
+      font-weight: 500;
+      color: #2d3748;
+    }
+
+    .vocab-pos {
+      font-size: 11px;
+      color: #718096;
+      background: #edf2f7;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 8px;
+    }
+
+    .vocab-score {
+      font-size: 11px;
+      color: #667eea;
+      font-weight: 500;
+    }
+
+    .vocab-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 15px;
+    }
+
+    .vocab-actions button {
+      flex: 1;
+      padding: 8px 12px;
+      font-size: 12px;
+      margin-bottom: 0;
+    }
+
+    .vocab-empty {
+      text-align: center;
+      padding: 20px;
+      color: #a0aec0;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h3>🤖 Ask Grok | Vocab</h3>
+    <div id="tab-container">
+      <button id="grok-tab">Grok</button>
+      <button id="vocab-tab">Vocab</button>
+    </div>
+    <div id="grok-section">
+      <p>Enter your prompt (page content included automatically):</p>
+      <textarea id="prompt" placeholder="e.g., Summarize this page or ask a question"></textarea>
+      <button id="send">
+        <span class="spinner"></span>
+        Send Query
+      </button>
+      <div id="response" class="loading-text">Ready to query...</div>
+    </div>
+    <div id="vocab-section" style="display: none;">
+      <button id="extract-vocab">Extract Vocab from Page</button>
+
+      <div id="vocab-stats" class="vocab-stats" style="display: none;">
+        <div class="stat-item">
+          <span class="stat-number" id="vocab-count">0</span>
+          <span class="stat-label">Words</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" id="relation-count">0</span>
+          <span class="stat-label">Relations</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" id="translation-count">0</span>
+          <span class="stat-label">Translations</span>
+        </div>
+      </div>
+
+      <div class="mini-graph">
+        <div class="graph-placeholder" id="graph-placeholder">
+          📊 Extract vocabulary to see semantic relationships
+        </div>
+        <svg id="mini-vocab-graph" style="display: none;"></svg>
+      </div>
+
+      <div id="vocab-preview">
+        <div class="vocab-empty" id="vocab-empty">
+          No vocabulary extracted yet. Click "Extract Vocab" to get started!
+        </div>
+        <div id="vocab-items" style="display: none;"></div>
+      </div>
+
+      <div class="vocab-actions">
+        <button id="refresh-preview">Refresh</button>
+        <button id="view-full-vocab">View Full Vocab</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

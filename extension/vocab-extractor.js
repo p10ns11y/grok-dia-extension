@@ -1,0 +1,1 @@
+(async()=>{document.readyState==="loading"&&await new Promise(t=>document.addEventListener("DOMContentLoaded",t));const e=(document.body.innerText||"").replace(/[^\w\s]/g," ").toLowerCase();chrome.runtime.sendMessage({action:"extractVocab",text:e})})();
