@@ -2,16 +2,16 @@
 
 **Secure bridge to xAI Grok API for browser queries. No tracking.**
 
-Monorepo with two lightweight Chrome extensions for personal use:
+Monorepo with two Chrome extensions for reading and vocabulary practice. Each app is independent; install one or both.
 
-| Extension | Folder | Purpose |
-|-----------|--------|---------|
-| **Grok Bridge** | [`apps/grok-bridge`](apps/grok-bridge) | Ask xAI Grok about selected text or the current page |
-| **Vocab Study** | [`apps/vocab-study`](apps/vocab-study) | Save words with context; spaced-repetition review |
+| Extension | Package | Load unpacked from |
+|-----------|---------|-------------------|
+| [Ask Grok](apps/ask-grok) | `ask-grok` | `apps/ask-grok/dist` |
+| [Vocab Builder](apps/vocab-builder) | `vocab-builder` | `apps/vocab-builder/dist` |
 
-The legacy combined extension in [`src/`](src/) and [`extension/`](extension/) is deprecated.
+The legacy combined build in [`src/`](src/) and [`extension/`](extension/) is deprecated.
 
-## Features (Grok Bridge)
+## Features (Ask Grok)
 
 - Query xAI Grok AI directly from your browser with page context
 - Right-click on selected text to "Ask Grok about this"
@@ -19,48 +19,31 @@ The legacy combined extension in [`src/`](src/) and [`extension/`](extension/) i
 - No data tracking or external logging
 - Notifications for quick responses
 
-## Installation
-
-1. Download or clone this repository
-2. Build extensions (see **Build** below)
-3. Open Chrome and go to `chrome://extensions/`
-4. Enable **Developer mode**
-5. Click **Load unpacked** and select:
-   - `apps/grok-bridge/dist`
-   - `apps/vocab-study/dist` (optional, for vocabulary)
-
-## Build
+## Quick start
 
 ```bash
 npm install
 npm run build
 ```
 
-## Usage (Grok Bridge)
+In Chrome (`chrome://extensions`, Developer mode): **Load unpacked** for each `dist` folder above.
+
+## Usage (Ask Grok)
 
 1. **Configure Settings**: Click the extension icon, then **Options** to select your Grok model and enter your xAI API key
 2. **Popup Query**: Click the extension icon, enter a prompt, and optionally include current page content
 3. **Context Menu**: Select text on any webpage, right-click, and choose **Ask Grok about this**
 4. Responses appear in the popup or as notifications
 
-## Vocab Study
+## Optional: link Ask Grok → Vocab Builder
 
-1. Click the extension icon to open the study page.
-2. Right-click selection → **Save to Vocab Study** (word + sentence context + URL).
-3. **Review** tab: reveal definition → Again / Hard / Good / Easy (SM-2).
-4. **Add word** / **Extract from page** (manual, top 10 terms).
+See [apps/ask-grok/README.md](apps/ask-grok/README.md#link-to-vocab-builder) and run:
 
-Add definitions in **Word list** → Edit def (or when saving manually).
+```bash
+npm run link-extensions -- <ask-grok-extension-id>
+```
 
-## Link Grok → Vocab (optional)
-
-Vocab Study works alone; skip this unless you use both extensions.
-
-1. Install both extensions; copy **Grok Bridge** ID from `chrome://extensions`.
-2. Run: `npm run link-extensions -- <grok-bridge-id>` (adds `externally_connectable` to the vocab manifest).
-3. Reload Vocab Study on `chrome://extensions` (rebuild first if you changed code: `npm run build:vocab`).
-4. In Grok Bridge options, paste **Vocab Study** extension ID.
-5. After a Grok reply, use **Save to Vocab Study** in the popup.
+Then reload Vocab Builder and set the Vocab Builder ID in Ask Grok options.
 
 ## Configuration
 
@@ -79,13 +62,19 @@ Choose from available xAI Grok models:
 
 ## Scripts
 
-- `npm run build` — both extensions
-- `npm run dev:grok` / `npm run dev:vocab` — watch builds
-- `npm run link-extensions -- <grok-id>` — allow cross-extension save
+| Command | Description |
+|---------|-------------|
+| `npm run build` | Build both extensions |
+| `npm run build:ask-grok` | Build Ask Grok only |
+| `npm run build:vocab-builder` | Build Vocab Builder only |
+| `npm run dev:ask-grok` | Watch build (Ask Grok) |
+| `npm run dev:vocab-builder` | Watch build (Vocab Builder) |
+| `npm run link-extensions -- <id>` | Allow Ask Grok to save cards to Vocab Builder |
+| `npm run clean` | Remove `dist` folders |
 
 ## Dogfooding
 
-See [`docs/DOGFOOD.md`](docs/DOGFOOD.md) for a 2-week personal checklist.
+[`docs/DOGFOOD.md`](docs/DOGFOOD.md) — two-week personal checklist.
 
 ## Screenshots
 

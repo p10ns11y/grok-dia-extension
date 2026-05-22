@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Grok Bridge",
+  "name": "Ask Grok",
   "version": "1.0.0",
   "description": "Ask xAI Grok about selected text or the current page. No tracking.",
   "permissions": ["storage", "activeTab", "scripting", "contextMenus"],

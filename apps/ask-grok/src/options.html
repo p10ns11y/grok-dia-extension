@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Grok Bridge Options</title>
+  <title>Ask Grok Options</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -49,7 +49,7 @@
 </head>
 <body>
   <div class="container">
-    <h3>Grok Bridge</h3>
+    <h3>Ask Grok</h3>
     <p>API key stored locally only.</p>
     <label for="model">Model</label>
     <select id="model">
@@ -58,9 +58,9 @@
     </select>
     <label for="apiKey">xAI API Key</label>
     <input type="password" id="apiKey" placeholder="xAI API key" />
-    <label for="vocabExtensionId">Vocab Study extension ID (optional)</label>
+    <label for="vocabExtensionId">Vocab Builder extension ID (optional)</label>
     <input type="text" id="vocabExtensionId" placeholder="From chrome://extensions" />
-    <p class="hint">Enables &quot;Save to Vocab Study&quot; in the popup. Run <code>npm run link-extensions</code> after setting IDs.</p>
+    <p class="hint">Enables &quot;Save to Vocab Builder&quot; in the popup. Run <code>npm run link-extensions</code> after setting IDs.</p>
     <button id="save">Save</button>
     <div id="status"></div>
   </div>

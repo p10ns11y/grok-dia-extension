@@ -14,8 +14,8 @@ node_modules/
 dist/
 build/
 extension/
-apps/grok-bridge/dist/
-apps/vocab-study/dist/
+apps/ask-grok/dist/
+apps/vocab-builder/dist/
 
 # IDE
 .vscode/

@@ -1,4 +1,5 @@
 import Dexie from 'dexie';
+import nlp from 'compromise';
 
 const vocabDB = new Dexie('VocabStudyDB');
 
@@ -7,8 +8,11 @@ vocabDB.version(1).stores({
   words: 'id, &text, pos, freq_rank, next_review, repetitions',
 });
 
+let dbOpenPromise = null;
+
 async function openDatabase() {
   try {
+    if (vocabDB.isOpen()) return;
     await vocabDB.open();
   } catch (err) {
     const msg = err?.message || String(err);
@@ -27,7 +31,24 @@ async function openDatabase() {
   }
 }
 
-const dbReady = openDatabase();
+/** Re-open IndexedDB after MV3 service worker restarts (connections do not survive sleep). */
+async function ensureDb() {
+  if (vocabDB.isOpen()) return;
+  if (!dbOpenPromise) {
+    dbOpenPromise = openDatabase().finally(() => {
+      dbOpenPromise = null;
+    });
+  }
+  await dbOpenPromise;
+}
+
+self.addEventListener('unhandledrejection', (event) => {
+  console.error('Vocab Builder SW unhandled rejection:', event.reason);
+});
+
+self.addEventListener('error', (event) => {
+  console.error('Vocab Builder SW error:', event.error ?? event.message);
+});
 
 const commonWords = new Set([
   'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'i', 'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at',
@@ -38,15 +59,27 @@ const commonWords = new Set([
   'first', 'well', 'way', 'even', 'new', 'want', 'because', 'any', 'these', 'give', 'day', 'most', 'us',
 ]);
 
+function setupContextMenu() {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: 'saveWord',
+      title: 'Save to Vocab Builder',
+      contexts: ['selection'],
+    });
+  });
+}
+
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: 'saveWord',
-    title: 'Save to Vocab Study',
-    contexts: ['selection'],
-  });
-  chrome.action.onClicked.addListener(() => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('study.html') });
-  });
+  setupContextMenu();
+  ensureDb().catch((err) => console.error('DB init on install:', err));
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  ensureDb().catch((err) => console.error('DB init on startup:', err));
+});
+
+chrome.action.onClicked.addListener(() => {
+  chrome.tabs.create({ url: chrome.runtime.getURL('study.html') });
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -55,20 +88,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   }
 });
 
-chrome.runtime.onMessageExternal.addListener((request, _sender, sendResponse) => {
-  handleMessage(request, sendResponse);
-  return true;
-});
-
-chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-  handleMessage(request, sendResponse);
-  return true;
-});
-
-async function handleMessage(request, sendResponse) {
-  try {
-    await dbReady;
-    switch (request.action) {
+function onMessageListener(request, _sender, sendResponse) {
+  (async () => {
+    try {
+      await ensureDb();
+      switch (request.action) {
       case 'saveWord':
         sendResponse({ success: true, word: await saveWord(request) });
         break;
@@ -78,9 +102,12 @@ async function handleMessage(request, sendResponse) {
       case 'extractVocab':
         sendResponse({ success: true, added: await extractVocab(request.text) });
         break;
-      case 'getVocab':
-        sendResponse({ words: await vocabDB.words.orderBy('text').toArray() });
+      case 'getVocab': {
+        const words = await vocabDB.words.toArray();
+        words.sort((a, b) => a.text.localeCompare(b.text));
+        sendResponse({ words });
         break;
+      }
       case 'getReviewWords':
         sendResponse({ words: await getWordsDueForReview(request.limit || 20) });
         break;
@@ -98,12 +125,17 @@ async function handleMessage(request, sendResponse) {
         break;
       default:
         sendResponse({ error: 'Unknown action' });
+      }
+    } catch (err) {
+      console.error('Vocab Builder message error:', err);
+      sendResponse({ success: false, error: err.message });
     }
-  } catch (err) {
-    console.error(err);
-    sendResponse({ success: false, error: err.message });
-  }
+  })();
+  return true;
 }
+
+chrome.runtime.onMessageExternal.addListener(onMessageListener);
+chrome.runtime.onMessage.addListener(onMessageListener);
 
 function normalizeWord(text) {
   const w = text.trim().toLowerCase().replace(/[^a-z'-]/g, '');
@@ -112,7 +144,7 @@ function normalizeWord(text) {
 }
 
 async function captureAndSaveWord(tabId, url, selectionText) {
-  await dbReady;
+  await ensureDb();
   let snippet = selectionText.trim();
   try {
     const [result] = await chrome.scripting.executeScript({
@@ -135,7 +167,7 @@ async function captureAndSaveWord(tabId, url, selectionText) {
 
   const word = selectionText.trim().split(/\s+/).find((t) => normalizeWord(t));
   if (!word) {
-    console.warn('Vocab Study: could not save — select a single word');
+    console.warn('Vocab Builder: could not save — select a single word');
     return;
   }
 
@@ -185,7 +217,6 @@ async function saveWord({ text, definition_en = '', source_url = '', source_snip
 }
 
 async function extractVocab(text) {
-  const { default: nlp } = await import('compromise');
   const limited = (text || '').substring(0, 10000);
   const doc = nlp(limited);
   const terms = doc.json().flatMap((s) => s.terms);

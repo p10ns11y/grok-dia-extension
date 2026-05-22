@@ -4,7 +4,7 @@ This folder powered the original combined **Grok Dia** extension.
 
 Use the monorepo apps instead:
 
-- [`../apps/grok-bridge/`](../apps/grok-bridge/)
-- [`../apps/vocab-study/`](../apps/vocab-study/)
+- [`../apps/ask-grok/`](../apps/ask-grok/)
+- [`../apps/vocab-builder/`](../apps/vocab-builder/)
 
 Build with `npm run build` from the repository root.

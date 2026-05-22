@@ -3,14 +3,29 @@ let reviewIndex = 0;
 let answerRevealed = false;
 let allWords = [];
 
-function send(action, payload = {}) {
+const RETRYABLE_ERRORS = [
+  'Receiving end does not exist',
+  'Extension context invalidated',
+  'message port closed',
+];
+
+function send(action, payload = {}, attempt = 0) {
+  const maxAttempts = 4;
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ action, ...payload }, (response) => {
-      if (chrome.runtime.lastError) {
-        resolve({ error: chrome.runtime.lastError.message });
-      } else {
-        resolve(response || {});
+      const errMsg = chrome.runtime.lastError?.message;
+      if (errMsg) {
+        const retryable = RETRYABLE_ERRORS.some((s) => errMsg.includes(s));
+        if (retryable && attempt < maxAttempts - 1) {
+          setTimeout(() => {
+            resolve(send(action, payload, attempt + 1));
+          }, 120 * (attempt + 1));
+          return;
+        }
+        resolve({ error: errMsg });
+        return;
       }
+      resolve(response || {});
     });
   });
 }
@@ -42,7 +57,7 @@ async function refreshStats() {
 
   const idleMsg = document.getElementById('review-idle-msg');
   if (stats.dueToday === 0 && stats.totalWords === 0) {
-    idleMsg.textContent = 'No words yet. Right-click text → Save to Vocab Study, or add a word.';
+    idleMsg.textContent = 'No words yet. Right-click text → Save to Vocab Builder, or add a word.';
   } else if (stats.dueToday === 0) {
     idleMsg.textContent = 'Nothing due. Come back later or add more words.';
   } else {

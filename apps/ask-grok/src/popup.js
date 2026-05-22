@@ -66,7 +66,7 @@ document.getElementById('send').addEventListener('click', () => {
 document.getElementById('save-vocab').addEventListener('click', async () => {
   const { vocabExtensionId } = await chrome.storage.local.get(['vocabExtensionId']);
   if (!vocabExtensionId) {
-    alert('Set Vocab Study extension ID in Grok Bridge options (chrome://extensions).');
+    alert('Set Vocab Builder extension ID in Ask Grok options (chrome://extensions).');
     return;
   }
 
@@ -89,13 +89,13 @@ document.getElementById('save-vocab').addEventListener('click', async () => {
     chrome.runtime.sendMessage(vocabExtensionId, payload, (res) => {
       if (chrome.runtime.lastError) {
         alert(
-          `Could not reach Vocab Study: ${chrome.runtime.lastError.message}\n` +
-            'Run npm run link-extensions with both extension IDs, then reload Vocab Study.'
+          `Could not reach Vocab Builder: ${chrome.runtime.lastError.message}\n` +
+            'Run npm run link-extensions with Ask Grok ID, then reload Vocab Builder.'
         );
         return;
       }
       if (res?.success) {
-        alert(`Saved "${payload.text}" to Vocab Study.`);
+        alert(`Saved "${payload.text}" to Vocab Builder.`);
       } else {
         alert(res?.error || 'Save failed.');
       }

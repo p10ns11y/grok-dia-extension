@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Vocab Study",
+  "name": "Vocab Builder",
   "version": "1.0.0",
   "description": "Save words from reading and review with spaced repetition. Local only.",
   "permissions": ["storage", "activeTab", "scripting", "contextMenus"],
@@ -9,7 +9,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Open Vocab Study"
+    "default_title": "Open Vocab Builder"
   },
   "options_page": "study.html",
   "icons": {
